@@ -1,5 +1,3 @@
-//Code from Adafruit GPS parsing example (https://learn.adafruit.com/adafruit-ultimate-gps/parsed-data-output)
-
 // This code shows how to listen to the GPS module in an interrupt
 // which allows the program to have more 'freedom' - just parse
 // when a new NMEA sentence is available! Then access data when
@@ -20,6 +18,9 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 // Set GPSECHO to 'false' to turn off echoing the GPS data to the Serial console
 // Set to 'true' if you want to debug and listen to the raw GPS sentences. 
 #define GPSECHO  false
+#define KNOTS_TO_MPH 1.15078
+#define KNOTS_TO_KPH 1.852
+#define KNOTS_TO_MS 0.514444
 
 // this keeps track of whether we're using the interrupt
 // off by default!
@@ -60,10 +61,20 @@ void setup()
 
   for(int i = 0; i < 3; i++) {
     lcd.print(".");
-    delay(500);
+    delay(333);
   }
   // Ask for firmware version
   mySerial.println(PMTK_Q_RELEASE);
+  lcd.setCursor(0, 0);
+           //----------------
+  lcd.print("Starting Logger");
+  while(true) {
+    if(!GPS.LOCUS_StartLogger()) {
+      delay(100);
+    } else {
+      break;
+    }
+  }
 }
 
 
@@ -93,17 +104,22 @@ void useInterrupt(boolean v) {
   }
 }
 
-void printPadded(int number, int width) {
+void printPadded(int number, int width, char pad) {
   if(number > 0) {
     for(int i = 1; i < width - log10(number); i++) {
-      lcd.print('0');
+      lcd.print(pad);
     }
     lcd.print(number, DEC);
   } else {
-    for(int i = 0; i < width; i++) {
-      lcd.print('0');
+    for(int i = 1; i < width; i++) {
+      lcd.print(pad);
     }
+    lcd.print('0');
   }
+}
+
+void printPadded(int number, int width) {
+  printPadded(number, width, '0');
 }
 
 uint32_t timer = millis();
@@ -133,15 +149,28 @@ void loop()                     // run over and over again
       if(fixEndTime < 0) {
         fixEndTime = millis();
         lcd.clear();
-        lcd.print("Fix! (");
+        lcd.print("TTF: ");
         lcd.print((fixEndTime - fixStartTime) / 1000);
-        lcd.print("s)");
+        lcd.print("s");
       }
       
       lcd.setCursor(0, 1);
-      printPadded(GPS.hour, 2); lcd.print(':');
-      printPadded(GPS.minute, 2); lcd.print(':');
-      printPadded(GPS.seconds, 2);
+      lcd.print(GPS.speed * KNOTS_TO_MPH, 2);
+      lcd.print("mph");
+      
+      //printPadded(GPS.hour, 2); lcd.print(':');
+      //printPadded(GPS.minute, 2); lcd.print(':');
+      //printPadded(GPS.seconds, 2);
+
+      //lcd.setCursor(9, 1); //8chars for time + 2 space
+      if(GPS.LOCUS_ReadStatus()) {
+        int percent = (int)GPS.LOCUS_percent;
+        //0123456789ABCDEF
+        //TTF: 999s   100%
+        lcd.setCursor(12, 0);
+        printPadded(percent, 3, ' ');
+        lcd.print('%');
+      }
     } else {
       //did we have a fix before?
       if(fixEndTime > 0) {
