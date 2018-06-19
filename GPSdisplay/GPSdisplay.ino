@@ -3,6 +3,7 @@
 // when a new NMEA sentence is available! Then access data when
 // desired.
 
+
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
 #include <LiquidCrystal.h>
